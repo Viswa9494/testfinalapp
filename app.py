@@ -5,6 +5,7 @@ from tensorflow.keras.applications.vgg16 import preprocess_input, decode_predict
 import numpy as np
 from PIL import Image
 import io
+import base64
 
 app = Flask(__name__)
 
@@ -22,10 +23,10 @@ image_size = (224, 224)
 def preprocess_image_from_base64(base64_str):
     try:
         # Decode base64 string into bytes
-        image_bytes = io.BytesIO(base64.b64decode(base64_str))
-
-        # Open image from bytes
-        img = Image.open(image_bytes)
+        image_bytes = base64.b64decode(base64_str)
+        
+        # Convert bytes to PIL Image
+        img = Image.open(io.BytesIO(image_bytes))
 
         # Resize the image to match the input size expected by the model
         img = img.resize(image_size)
