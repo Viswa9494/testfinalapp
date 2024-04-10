@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
-from tensorflow.keras.applications.vgg16 import preprocess_input
+from tensorflow.keras.applications.vgg16 import preprocess_input, decode_predictions
 import numpy as np
 from PIL import Image
-from io import BytesIO
+import io
 
 app = Flask(__name__)
 
@@ -19,10 +19,13 @@ output_details = interpreter.get_output_details()
 # Define image size
 image_size = (224, 224)
 
-def preprocess_image(image_data):
+def preprocess_image_from_base64(base64_str):
     try:
+        # Decode base64 string into bytes
+        image_bytes = io.BytesIO(base64.b64decode(base64_str))
+
         # Open image from bytes
-        img = Image.open(BytesIO(image_data))
+        img = Image.open(image_bytes)
 
         # Resize the image to match the input size expected by the model
         img = img.resize(image_size)
@@ -41,9 +44,9 @@ def preprocess_image(image_data):
         print("Error processing image:", e)
         return None
 
-def predict_image_class(image_data):
+def predict_image_class_from_base64(base64_str):
     # Preprocess the image
-    img_array = preprocess_image(image_data)
+    img_array = preprocess_image_from_base64(base64_str)
 
     if img_array is not None:
         # Set input tensor
@@ -74,23 +77,18 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+    data = request.get_json()
+    base64_str = data.get('image')
 
-    file = request.files['file']
-
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-
-    if file:
+    if base64_str:
         # Predict class
-        predicted_class, confidence = predict_image_class(file.read())
+        predicted_class, confidence = predict_image_class_from_base64(base64_str)
         # Convert confidence to Python float
         confidence = float(confidence)
         # Return prediction
         return jsonify({"predicted_class": predicted_class, "confidence": confidence})
     else:
-        return jsonify({"error": "Error processing file"}), 400
+        return jsonify({"error": "Base64 image data not provided"}), 400
 
 
 if __name__ == "__main__":
